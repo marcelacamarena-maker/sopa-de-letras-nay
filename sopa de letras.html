@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sopa de Letras: Pueblos Mágicos de Nayarit</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --primary: #2c3e50;
+            --accent-green: #27ae60;
+            --accent-red: #e74c3c;
+            --cell-bg: #ffffff;
+            --cell-selected: #abebc6;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 5px 0 15px 0;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .timer {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent-red);
+        }
+
+        .btn-reset {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            align-items: center;
+        }
+
+        @media (min-width: 650px) {
+            .main-container {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: center;
+            }
+        }
+
+        /* Rejilla de la Sopa */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 3px;
+            background-color: #bdc3c7;
+            padding: 5px;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 420px;
+            touch-action: none;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: clamp(0.8rem, 2.5vw, 1.1rem);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .cell.selected {
+            background-color: var(--cell-selected);
+        }
+
+        .cell.found {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        /* Lista de Palabras */
+        .word-list-container {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .word-list-container h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 5px;
+        }
+
+        .word-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .word-item {
+            font-weight: bold;
+            font-size: 1rem;
+            color: var(--accent-green);
+            transition: all 0.3s;
+        }
+
+        .word-item.found {
+            color: var(--accent-red);
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        /* Overlay Fin de Juego */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.5rem;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pueblos Mágicos de Nayarit</h1>
+
+    <div class="dashboard">
+        <div class="timer" id="timer">05:00</div>
+        <button class="btn-reset" onclick="initGame()">Reiniciar</button>
+    </div>
+
+    <div class="main-container">
+        <div class="grid-container" id="grid"></div>
+
+        <div class="word-list-container">
+            <h3>Palabras (9)</h3>
+            <ul class="word-list" id="wordList"></ul>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div id="overlayMessage">¡Tiempo Agotado!</div>
+        <button onclick="initGame()">Jugar de Nuevo</button>
+    </div>
+
+    <script>
+        const WORDS = [
+            "COMPOSTELA", "JALA", "MEXCALTITAN", "SAYULITA", 
+            "AHUACATLAN", "AMATLAN", "IXTLAN", "SANBLAS", "PUERTO"
+        ];
+        
+        const GRID_SIZE = 12;
+        const TIME_LIMIT = 300; // 5 minutos en segundos
+
+        let grid = [];
+        let foundWords = [];
+        let timerInterval;
+        let timeLeft = TIME_LIMIT;
+        let isSelecting = false;
+        let selectedCells = [];
+
+        function initGame() {
+            clearInterval(timerInterval);
+            timeLeft = TIME_LIMIT;
+            foundWords = [];
+            selectedCells = [];
+            isSelecting = false;
+            
+            document.getElementById('overlay').classList.remove('active');
+            updateTimerDisplay();
+            startTimer();
+            renderWordList();
+            generateGrid();
+            renderGrid();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function renderWordList() {
+            const listEl = document.getElementById('wordList');
+            listEl.innerHTML = '';
+            WORDS.forEach(word => {
+                const li = document.createElement('li');
+                li.className = 'word-item';
+                li.id = `word-${word}`;
+                li.textContent = word;
+                listEl.appendChild(li);
+            });
+        }
+
+        function generateGrid() {
+            grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+            
+            // Direcciones para dificultad intermedia: Horizontal, Vertical y Diagonal Descendente (normal y reverso)
+            const directions = [
+                [0, 1],   // Derecha
+                [1, 0],   // Abajo
+                [1, 1],   // Diagonal Abajo-Derecha
+                [0, -1],  // Izquierda
+                [-1, 0]   // Arriba
+            ];
+
+            WORDS.forEach(word => {
+                let placed = false;
+                let attempts = 0;
+
+                while (!placed && attempts < 200) {
+                    attempts++;
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+                    const row = Math.floor(Math.random() * GRID_SIZE);
+                    const col = Math.floor(Math.random() * GRID_SIZE);
+
+                    if (canPlaceWord(word, row, col, dir)) {
+                        for (let i = 0; i < word.length; i++) {
+                            const r = row + dir[0] * i;
+                            const c = col + dir[1] * i;
+                            grid[r][c] = word[i];
+                        }
+                        placed = true;
+                    }
+                }
+            });
+
+            // Rellenar espacios vacíos
+            const letters = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (grid[r][c] === '') {
+                        grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
+                    }
+                }
+            }
+        }
+
+        function canPlaceWord(word, row, col, dir) {
+            for (let i = 0; i < word.length; i++) {
+                const r = row + dir[0] * i;
+                const c = col + dir[1] * i;
+
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return false;
+                if (grid[r][c] !== '' && grid[r][c] !== word[i]) return false;
+            }
+            return true;
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.textContent = grid[r][c];
+                    
+                    // Eventos táctiles y ratón
+                    cell.addEventListener('mousedown', () => startSelection(r, c));
+                    cell.addEventListener('mouseenter', () => updateSelection(r, c));
+                    
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            document.addEventListener('mouseup', endSelection);
+
+            // Soporte para pantallas táctiles
+            gridEl.addEventListener('touchstart', handleTouchStart, {passive: false});
+            gridEl.addEventListener('touchmove', handleTouchMove, {passive: false});
+            gridEl.addEventListener('touchend', endSelection);
+        }
+
+        function startSelection(r, c) {
+            isSelecting = true;
+            selectedCells = [{r, c}];
+            highlightSelected();
+        }
+
+        function updateSelection(r, c) {
+            if (!isSelecting) return;
+            
+            const start = selectedCells[0];
+            const dr = r - start.r;
+            const dc = c - start.c;
+
+            // Verificar si es una línea recta (H, V o D)
+            if (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) {
+                const steps = Math.max(Math.abs(dr), Math.abs(dc));
+                const stepR = dr === 0 ? 0 : dr / steps;
+                const stepC = dc === 0 ? 0 : dc / steps;
+
+                selectedCells = [];
+                for (let i = 0; i <= steps; i++) {
+                    selectedCells.push({
+                        r: start.r + stepR * i,
+                        c: start.c + stepC * i
+                    });
+                }
+                highlightSelected();
+            }
+        }
+
+        function endSelection() {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            const selectedWord = selectedCells.map(cell => grid[cell.r][cell.c]).join('');
+            const reversedWord = selectedWord.split('').reverse().join('');
+
+            let matchedWord = null;
+            if (WORDS.includes(selectedWord) && !foundWords.includes(selectedWord)) {
+                matchedWord = selectedWord;
+            } else if (WORDS.includes(reversedWord) && !foundWords.includes(reversedWord)) {
+                matchedWord = reversedWord;
+            }
+
+            if (matchedWord) {
+                foundWords.push(matchedWord);
+                document.getElementById(`word-${matchedWord}`).classList.add('found');
+                
+                selectedCells.forEach(cell => {
+                    const el = getCellEl(cell.r, cell.c);
+                    el.classList.add('found');
+                });
+
+                if (foundWords.length === WORDS.length) {
+                    endGame(true);
+                }
+            }
+
+            clearSelectionHighlight();
+        }
+
+        function highlightSelected() {
+            clearSelectionHighlight();
+            selectedCells.forEach(cell => {
+                const el = getCellEl(cell.r, cell.c);
+                if (el) el.classList.add('selected');
+            });
+        }
+
+        function clearSelectionHighlight() {
+            document.querySelectorAll('.cell.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+        }
+
+        function getCellEl(r, c) {
+            return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        }
+
+        // Manejadores Touch
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.classList.contains('cell')) {
+                startSelection(parseInt(target.dataset.row), parseInt(target.dataset.col));
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isSelecting) return;
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.classList.contains('cell')) {
+                updateSelection(parseInt(target.dataset.row), parseInt(target.dataset.col));
+            }
+        }
+
+        function endGame(won) {
+            clearInterval(timerInterval);
+            const overlay = document.getElementById('overlay');
+            const msg = document.getElementById('overlayMessage');
+            
+            if (won) {
+                msg.textContent = "¡Felicidades! Encontraste todos los Pueblos Mágicos.";
+            } else {
+                msg.textContent = "¡Tiempo Agotado! Inténtalo de nuevo.";
+            }
+            overlay.classList.add('active');
+        }
+
+        // Inicializar al cargar
+        window.onload = initGame;
+    </script>
+</body>
+</html>
